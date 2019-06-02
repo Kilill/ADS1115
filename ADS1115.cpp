@@ -40,6 +40,9 @@ THE SOFTWARE.
  */
 ADS1115::ADS1115() {
     devAddr = ADS1115_DEFAULT_ADDRESS;
+    devMode = ADS1115_MODE_SINGLESHOT;
+    muxMode = ADS1115_MUX_P0_N1;
+    pgaMode = ADS1115_PGA_2P048;
 }
 
 /** Specific address constructor.
@@ -52,6 +55,9 @@ ADS1115::ADS1115() {
  */
 ADS1115::ADS1115(uint8_t address) {
     devAddr = address;
+    devMode = ADS1115_MODE_SINGLESHOT;
+    muxMode = ADS1115_MUX_P0_N1;
+    pgaMode = ADS1115_PGA_2P048;
 }
 
 /** Power on and prepare for general usage.
@@ -76,7 +82,8 @@ void ADS1115::initialize() {
  * @return True if connection is valid, false otherwise
  */
 bool ADS1115::testConnection() {
-    return I2Cdev::readWord(devAddr, ADS1115_RA_CONVERSION, buffer) == 1;
+	int ret= I2Cdev::readWord(devAddr, ADS1115_RA_CONVERSION, buffer) == 1;
+    return ret == 1;
 }
 
 /** Poll the operational status bit until the conversion is finished
@@ -259,16 +266,18 @@ float ADS1115::getMilliVolts(bool triggerAndPoll) {
     case ADS1115_PGA_0P256C:      
       return (getConversion(triggerAndPoll) * ADS1115_MV_0P256);
       break;       
+    default:
+      return (getConversion(triggerAndPoll) * ADS1115_MV_6P144);
   }
 }
 
 /**
  * Return the current multiplier for the PGA setting.
  * 
- * This may be directly retreived by using getMilliVolts(),
+ * This may be directly retrieved by using getMilliVolts(),
  * but this causes an independent read.  This function could
  * be used to average a number of reads from the getConversion()
- * getConversionx() functions and cut downon the number of 
+ * getConversionx() functions and cut down on the number of
  * floating-point calculations needed.
  *
  */
@@ -295,6 +304,8 @@ float ADS1115::getMvPerCount() {
     case ADS1115_PGA_0P256C:      
       return ADS1115_MV_0P256;
       break;       
+    default:
+      return ADS1115_MV_6P144;
   }
 }
 
@@ -328,7 +339,7 @@ uint8_t ADS1115::getMultiplexer() {
     muxMode = (uint8_t)buffer[0];
     return muxMode;
 }
-/** Set multiplexer connection.  Continous mode may fill the conversion register
+/** Set multiplexer connection.  Continuous mode may fill the conversion register
  * with data before the MUX setting has taken effect.  A stop/start of the conversion
  * is done to reset the values.
  * @param mux New multiplexer connection setting
